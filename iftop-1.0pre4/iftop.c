@@ -125,7 +125,7 @@ void history_rotate() {
             d->recv[history_pos] = 0;
             d->sent[history_pos] = 0;
         }
-        n = next; 
+        n = next;
     }
 
     history_totals.sent[history_pos] = 0;
@@ -141,7 +141,7 @@ void tick(int print) {
     time_t t;
 
     pthread_mutex_lock(&tick_mutex);
-   
+
     t = time(NULL);
     if(t - last_timestamp >= RESOLUTION) {
         analyse_data();
@@ -283,7 +283,7 @@ static void handle_ip_packet(struct ip* iptr, int hw_dir, int pld_len)
 	return;
 
     if( (IP_V(iptr) == 4 && options.netfilter == 0)
-            || (IP_V(iptr) == 6 && options.netfilter6 == 0) ) { 
+            || (IP_V(iptr) == 6 && options.netfilter6 == 0) ) {
         /*
          * Net filter is off, so assign direction based on MAC address
          */
@@ -329,9 +329,9 @@ static void handle_ip_packet(struct ip* iptr, int hw_dir, int pld_len)
             direction = 0;
         }
         /*
-         * Cannot determine direction from hardware or IP levels.  Therefore 
+         * Cannot determine direction from hardware or IP levels.  Therefore
          * assume that it was a packet between two other machines, assign
-         * source and dest arbitrarily (by numerical value) and account as 
+         * source and dest arbitrarily (by numerical value) and account as
          * incoming.
          */
 	else if (options.promiscuous_but_choosy) {
@@ -351,9 +351,9 @@ static void handle_ip_packet(struct ip* iptr, int hw_dir, int pld_len)
     }
 
     if(IP_V(iptr) == 4 && options.netfilter != 0) {
-        /* 
-         * Net filter on, assign direction according to netmask 
-         */ 
+        /*
+         * Net filter on, assign direction according to netmask
+         */
         if(in_filter_net(iptr->ip_src) && !in_filter_net(iptr->ip_dst)) {
             /* out of network */
             assign_addr_pair(&ap, iptr, 0);
@@ -478,7 +478,7 @@ static void handle_ip_packet(struct ip* iptr, int hw_dir, int pld_len)
         history_totals.sent[history_pos] += len;
         history_totals.total_sent += len;
     }
-    
+
 }
 
 static void handle_raw_packet(unsigned char* args, const struct pcap_pkthdr* pkthdr, const unsigned char* packet)
@@ -492,7 +492,7 @@ static void handle_pflog_packet(unsigned char* args, const struct pcap_pkthdr* p
 	register u_int length = pkthdr->len;
 	u_int hdrlen;
 	const struct pfloghdr *hdr;
-	
+
 	hdr = (struct pfloghdr *)packet;
 	hdrlen = BPF_WORDALIGN(hdr->length);
 	length -= hdrlen;
@@ -568,11 +568,11 @@ static void handle_ppp_packet(unsigned char* args, const struct pcap_pkthdr* pkt
     register u_int caplen = pkthdr->caplen;
     u_int proto;
 
-	if (caplen < 2) 
+	if (caplen < 2)
         return;
 
 	if(packet[0] == PPP_ADDRESS) {
-		if (caplen < 4) 
+		if (caplen < 4)
             return;
 
 		packet += 2;
@@ -630,7 +630,7 @@ static void handle_eth_packet(unsigned char* args, const struct pcap_pkthdr* pkt
     if(ether_type == ETHERTYPE_IP || ether_type == ETHERTYPE_IPV6) {
         struct ip* iptr;
         int dir = -1;
-        
+
         /*
          * Is a direction implied by the MAC addresses?
          */
@@ -718,7 +718,7 @@ void packet_init() {
     have_hw_addr = result & 0x01;
     have_ip_addr = result & 0x02;
     have_ip6_addr = result & 0x04;
-    
+
     if(have_ip_addr) {
       fprintf(stderr, "IP address is: %s\n", inet_ntoa(if_ip_addr));
     }
@@ -736,14 +736,14 @@ void packet_init() {
 	fprintf(stderr, "%c%02x", i ? ':' : ' ', (unsigned int)if_hw_addr[i]);
       fprintf(stderr, "\n");
     }
-    
+
     //    exit(0);
     resolver_initialise();
 
     pd = pcap_open_live(options.interface, CAPTURE_LENGTH, options.promiscuous, 1000, errbuf);
     // DEBUG: pd = pcap_open_offline("tcpdump.out", errbuf);
-    if(pd == NULL) { 
-        fprintf(stderr, "pcap_open_live(%s): %s\n", options.interface, errbuf); 
+    if(pd == NULL) {
+        fprintf(stderr, "pcap_open_live(%s): %s\n", options.interface, errbuf);
         exit(1);
     }
     dlt = pcap_datalink(pd);
@@ -757,10 +757,10 @@ void packet_init() {
 #endif
     else if(dlt == DLT_RAW) {
         packet_handler = handle_raw_packet;
-    } 
+    }
     else if(dlt == DLT_NULL) {
         packet_handler = handle_null_packet;
-    } 
+    }
 #ifdef DLT_LOOP
     else if(dlt == DLT_LOOP) {
         packet_handler = handle_null_packet;
@@ -777,7 +777,7 @@ void packet_init() {
     else if(dlt == DLT_PPP) {
         packet_handler = handle_ppp_packet;
     }
-/* 
+/*
  * SLL support not available in older libpcaps
  */
 #ifdef DLT_LINUX_SLL
@@ -815,14 +815,14 @@ int main(int argc, char **argv) {
     setlocale(LC_ALL, "");
 
     /* TODO: tidy this up */
-    /* read command line options and config file */   
+    /* read command line options and config file */
     config_init();
     options_set_defaults();
     options_read_args(argc, argv);
     /* If a config was explicitly specified, whinge if it can't be found */
     read_config(options.config_file, options.config_file_specified);
     options_make();
-    
+
     sa.sa_handler = finish;
     sigaction(SIGINT, &sa, NULL);
 
@@ -846,8 +846,13 @@ int main(int argc, char **argv) {
 
     if (options.no_curses) {
       if (options.timed_output) {
-        while(!foad) {
+        time_t t = first_timestamp;
+        while (!foad && (t - first_timestamp < options.timed_output)) {
+          t = time(NULL);
           sleep(1);
+        }
+        if (!foad) {
+          tui_print();
         }
       }
       else {
@@ -863,6 +868,6 @@ int main(int argc, char **argv) {
     pcap_close(pd);
 
     ui_finish();
-    
+
     return 0;
 }
